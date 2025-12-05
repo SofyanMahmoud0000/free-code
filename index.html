@@ -9,6 +9,90 @@
             font-family: 'Consolas', 'Monaco', monospace;
             height: 100vh;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        #file-menu-btn {
+            position: fixed;
+            bottom: 10px;
+            right: 360px;
+            z-index: 1001;
+            background: #252526;
+            color: #cccccc;
+            border: 1px solid #3c3c3c;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 2px;
+            font-size: 13px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            user-select: none;
+            min-width: 80px;
+            text-align: center;
+        }
+        #file-menu-btn:hover {
+            background: #2d2d30;
+        }
+        #file-menu {
+            position: fixed;
+            bottom: 50px;
+            right: 360px;
+            z-index: 1000;
+            background: #252526;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            min-width: 250px;
+            max-width: 350px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        #file-menu.visible {
+            display: block;
+        }
+        .file-menu-item {
+            padding: 10px 15px;
+            color: #cccccc;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            border-bottom: 1px solid #3c3c3c;
+        }
+        .file-menu-item:hover {
+            background: #2d2d30;
+        }
+        .file-menu-item.active {
+            background: #1e1e1e;
+            color: #fff;
+        }
+        .file-menu-item-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .file-menu-item-close {
+            margin-left: 10px;
+            opacity: 0.6;
+            font-weight: bold;
+        }
+        .file-menu-item-close:hover {
+            opacity: 1;
+            color: #e06c75;
+        }
+        #file-menu-new {
+            padding: 10px 15px;
+            color: #4EC9B0;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            text-align: center;
+            border-top: 1px solid #3c3c3c;
+        }
+        #file-menu-new:hover {
+            background: #2d2d30;
         }
         .selector {
             position: fixed;
@@ -27,21 +111,25 @@
             background: #2d2d30;
         }
         #language-selector {
-            right: 180px;
+            right: 190px;
         }
         #theme-selector {
-            right: 10px;
+            right: 20px;
         }
         #container {
+            flex: 1;
             width: 100%;
-            height: 100vh;
         }
     </style>
 </head>
 <body>
+    <button id="file-menu-btn">☰ Files</button>
+    <div id="file-menu">
+        <div id="file-menu-new">+ New File</div>
+    </div>
     <select id="language-selector" class="selector">
         <option value="plaintext">Plain Text</option>
-        <option value="cpp" selected>C++</option>
+        <option value="cpp">C++</option>
         <option value="c">C</option>
         <option value="javascript">JavaScript</option>
         <option value="typescript">TypeScript</option>
@@ -69,7 +157,7 @@
         require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
 
         require(['vs/editor/editor.main'], function() {
-            // Define VS Dark Black theme (default vs-dark colors with black background)
+            // Define VS Dark Black theme
             monaco.editor.defineTheme('one-dark-black', {
                 base: 'vs-dark',
                 inherit: true,
@@ -79,7 +167,15 @@
                 }
             });
 
-            var editor = monaco.editor.create(document.getElementById('container'), {
+            // File management
+            var files = {};
+            var currentFileId = null;
+            var fileCounter = 0;
+            var editor = null;
+            var saveTimeout = null;
+
+            // Initialize editor
+            editor = monaco.editor.create(document.getElementById('container'), {
                 value: '',
                 language: 'cpp',
                 theme: 'one-dark-black',
@@ -104,36 +200,189 @@
                 }
             });
 
-            // Load saved content and language
-            var savedContent = localStorage.getItem('editorContent');
-            var savedLanguage = localStorage.getItem('editorLanguage');
-            var savedTheme = localStorage.getItem('editorTheme');
+            // Load theme
+            var savedTheme = localStorage.getItem('editorTheme') || 'one-dark-black';
+            monaco.editor.setTheme(savedTheme);
+            document.getElementById('theme-selector').value = savedTheme;
 
-            if (savedContent) {
-                editor.setValue(savedContent);
-            }
-            if (savedLanguage) {
-                monaco.editor.setModelLanguage(editor.getModel(), savedLanguage);
-                document.getElementById('language-selector').value = savedLanguage;
-            }
-            if (savedTheme) {
-                monaco.editor.setTheme(savedTheme);
-                document.getElementById('theme-selector').value = savedTheme;
+            // Load files from localStorage
+            function loadFiles() {
+                var savedFiles = localStorage.getItem('files');
+                var savedCurrentId = localStorage.getItem('currentFileId');
+
+                if (savedFiles) {
+                    files = JSON.parse(savedFiles);
+                    fileCounter = parseInt(localStorage.getItem('fileCounter')) || Object.keys(files).length;
+                }
+
+                // If no files, create a default one
+                if (Object.keys(files).length === 0) {
+                    createNewFile();
+                } else {
+                    currentFileId = savedCurrentId || Object.keys(files)[0];
+                    renderTabs();
+                    loadFile(currentFileId);
+                }
             }
 
-            // Auto-save to localStorage
-            var saveTimeout;
+            // Save files to localStorage
+            function saveFiles() {
+                localStorage.setItem('files', JSON.stringify(files));
+                localStorage.setItem('currentFileId', currentFileId);
+                localStorage.setItem('fileCounter', fileCounter.toString());
+            }
+
+            // Save current file content
+            function saveCurrentFile() {
+                if (currentFileId && files[currentFileId]) {
+                    files[currentFileId].content = editor.getValue();
+                    files[currentFileId].language = editor.getModel().getLanguageId();
+                    saveFiles();
+                }
+            }
+
+            // Auto-save
             editor.onDidChangeModelContent(function() {
                 clearTimeout(saveTimeout);
-                saveTimeout = setTimeout(function() {
-                    localStorage.setItem('editorContent', editor.getValue());
-                }, 500); // Save after 500ms of no typing
+                saveTimeout = setTimeout(saveCurrentFile, 500);
+            });
+
+            // Create new file
+            function createNewFile() {
+                fileCounter++;
+                var fileId = 'file-' + fileCounter;
+                files[fileId] = {
+                    name: 'untitled-' + fileCounter + '.txt',
+                    content: '',
+                    language: 'plaintext'
+                };
+                currentFileId = fileId;
+                renderTabs();
+                loadFile(fileId);
+                saveFiles();
+            }
+
+            // Switch to file
+            function switchToFile(fileId) {
+                if (fileId === currentFileId) return;
+                saveCurrentFile();
+                currentFileId = fileId;
+                renderTabs();
+                loadFile(fileId);
+                saveFiles();
+            }
+
+            // Load file into editor
+            function loadFile(fileId) {
+                if (!files[fileId]) return;
+                var file = files[fileId];
+                editor.setValue(file.content);
+                monaco.editor.setModelLanguage(editor.getModel(), file.language);
+                document.getElementById('language-selector').value = file.language;
+            }
+
+            // Close file
+            function closeFile(fileId) {
+                if (Object.keys(files).length === 1) {
+                    alert('Cannot close the last file');
+                    return;
+                }
+
+                delete files[fileId];
+
+                // Switch to another file
+                if (currentFileId === fileId) {
+                    currentFileId = Object.keys(files)[0];
+                    loadFile(currentFileId);
+                }
+
+                renderTabs();
+                saveFiles();
+            }
+
+            // Rename file
+            function renameFile(fileId) {
+                var file = files[fileId];
+                var newName = prompt('Enter new name:', file.name);
+                if (newName && newName.trim()) {
+                    file.name = newName.trim();
+                    renderTabs();
+                    saveFiles();
+                }
+            }
+
+            // Render file menu
+            function renderTabs() {
+                var menu = document.getElementById('file-menu');
+                var newBtn = document.getElementById('file-menu-new');
+
+                // Clear existing items (keep new button)
+                while (menu.firstChild && menu.firstChild !== newBtn) {
+                    menu.removeChild(menu.firstChild);
+                }
+
+                // Add file items
+                Object.keys(files).forEach(function(fileId) {
+                    var file = files[fileId];
+                    var item = document.createElement('div');
+                    item.className = 'file-menu-item' + (fileId === currentFileId ? ' active' : '');
+
+                    var nameSpan = document.createElement('span');
+                    nameSpan.className = 'file-menu-item-name';
+                    nameSpan.textContent = file.name;
+                    nameSpan.addEventListener('click', function() {
+                        switchToFile(fileId);
+                        toggleMenu();
+                    });
+                    nameSpan.addEventListener('dblclick', function() {
+                        renameFile(fileId);
+                    });
+
+                    var closeSpan = document.createElement('span');
+                    closeSpan.className = 'file-menu-item-close';
+                    closeSpan.textContent = '×';
+                    closeSpan.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        closeFile(fileId);
+                    });
+
+                    item.appendChild(nameSpan);
+                    item.appendChild(closeSpan);
+                    menu.insertBefore(item, newBtn);
+                });
+            }
+
+            // Toggle menu
+            function toggleMenu() {
+                var menu = document.getElementById('file-menu');
+                menu.classList.toggle('visible');
+            }
+
+            // Menu button
+            document.getElementById('file-menu-btn').addEventListener('click', toggleMenu);
+
+            // New file button
+            document.getElementById('file-menu-new').addEventListener('click', function() {
+                createNewFile();
+                toggleMenu();
+            });
+
+            // Close menu when clicking outside
+            document.addEventListener('click', function(e) {
+                var menu = document.getElementById('file-menu');
+                var btn = document.getElementById('file-menu-btn');
+                if (!menu.contains(e.target) && e.target !== btn) {
+                    menu.classList.remove('visible');
+                }
             });
 
             // Language switcher
             document.getElementById('language-selector').addEventListener('change', function() {
                 monaco.editor.setModelLanguage(editor.getModel(), this.value);
-                localStorage.setItem('editorLanguage', this.value);
+                if (currentFileId && files[currentFileId]) {
+                    files[currentFileId].language = this.value;
+                    saveFiles();
+                }
             });
 
             // Theme switcher
@@ -146,6 +395,9 @@
             window.addEventListener('resize', function() {
                 editor.layout();
             });
+
+            // Initialize
+            loadFiles();
         });
     </script>
 </body>
