@@ -114,7 +114,7 @@ body {
 
 #current-file-indicator {
     position: fixed;
-    top: 10px;
+    top: 80px;
     right: 10px;
     background: #252526;
     color: #cccccc;
@@ -132,7 +132,7 @@ body {
 
 #keyboard-hint {
     position: fixed;
-    top: 40px;
+    top: 120px;
     right: 10px;
     background: #252526;
     color: #888;
