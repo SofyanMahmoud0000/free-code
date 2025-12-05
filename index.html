@@ -116,6 +116,22 @@
         #current-file-indicator:hover {
             opacity: 1;
         }
+        #keyboard-hint {
+            position: fixed;
+            top: 40px;
+            right: 10px;
+            background: #252526;
+            color: #888;
+            padding: 4px 10px;
+            border-radius: 2px;
+            font-size: 11px;
+            opacity: 0.6;
+            z-index: 1000;
+            border: 1px solid #3c3c3c;
+        }
+        #keyboard-hint:hover {
+            opacity: 0.8;
+        }
         .selector {
             position: fixed;
             bottom: 10px;
@@ -147,10 +163,11 @@
 </head>
 <body>
     <div id="current-file-indicator"></div>
+    <div id="keyboard-hint">Press Ctrl+P for files</div>
     <div id="file-switcher">
         <div id="file-switcher-header">
             <span id="file-switcher-title">Files</span>
-            <span id="file-switcher-shortcuts">Ctrl+P: Toggle | ↑↓: Navigate | Enter: Select | Double-click: Rename</span>
+            <span id="file-switcher-shortcuts">Ctrl+P: Toggle | ↑↓: Navigate | Enter: Select | N: New | R: Rename | D: Delete</span>
         </div>
         <div id="file-switcher-list" tabindex="0"></div>
         <div id="file-switcher-new">+ New File</div>
@@ -281,9 +298,9 @@
                 fileCounter++;
                 var fileId = 'file-' + fileCounter;
                 files[fileId] = {
-                    name: 'untitled-' + fileCounter + '.txt',
+                    name: 'untitled-' + fileCounter + '.cpp',
                     content: '',
-                    language: 'plaintext'
+                    language: 'cpp'
                 };
                 currentFileId = fileId;
                 renderTabs();
@@ -315,6 +332,15 @@
                 if (Object.keys(files).length === 1) {
                     alert('Cannot close the last file');
                     return;
+                }
+
+                // Check if file has content and confirm deletion
+                var file = files[fileId];
+                if (file && file.content && file.content.trim().length > 0) {
+                    var confirmed = confirm('File "' + file.name + '" contains data. Are you sure you want to delete it?');
+                    if (!confirmed) {
+                        return;
+                    }
                 }
 
                 delete files[fileId];
@@ -363,14 +389,20 @@
                     var nameSpan = document.createElement('span');
                     nameSpan.className = 'file-switcher-name';
                     nameSpan.textContent = file.name;
+                    var clickTimer = null;
                     nameSpan.addEventListener('click', function(e) {
                         e.stopPropagation();
-                        selectedFileIndex = index;
-                        switchToFile(fileId);
-                        renderTabs();
+                        clearTimeout(clickTimer);
+                        clickTimer = setTimeout(function() {
+                            selectedFileIndex = index;
+                            switchToFile(fileId);
+                            renderTabs();
+                        }, 200);
                     });
                     nameSpan.addEventListener('dblclick', function(e) {
                         e.preventDefault();
+                        e.stopPropagation();
+                        clearTimeout(clickTimer);
                         renameFile(fileId);
                     });
 
@@ -391,12 +423,14 @@
             // Toggle file switcher
             function toggleFileSwitcher() {
                 var switcher = document.getElementById('file-switcher');
+                var hint = document.getElementById('keyboard-hint');
                 var isOpening = !switcher.classList.contains('visible');
 
                 switcher.classList.toggle('visible');
 
-                // When opening, set selected index to current file and focus
+                // Hide/show hint based on switcher state
                 if (isOpening) {
+                    hint.style.display = 'none';
                     var fileIds = Object.keys(files);
                     selectedFileIndex = fileIds.indexOf(currentFileId);
                     if (selectedFileIndex === -1) selectedFileIndex = 0;
@@ -407,15 +441,22 @@
                         document.getElementById('file-switcher-list').focus();
                     }, 0);
                 } else {
+                    hint.style.display = 'block';
                     // When closing, return focus to editor
                     editor.focus();
                 }
             }
 
             // New file button
-            document.getElementById('file-switcher-new').addEventListener('click', function() {
+            document.getElementById('file-switcher-new').addEventListener('click', function(e) {
+                e.stopPropagation();
                 createNewFile();
-                toggleFileSwitcher();
+                // Trigger rename prompt for the new file
+                setTimeout(function() {
+                    if (currentFileId) {
+                        renameFile(currentFileId);
+                    }
+                }, 100);
             });
 
             // Current file indicator click
@@ -449,28 +490,71 @@
                 if (isSwitcherOpen) {
                     var fileIds = Object.keys(files);
 
-                    // ArrowDown: Move selection down
+                    // ArrowDown: Move selection down and preview
                     if (e.key === 'ArrowDown') {
                         e.preventDefault();
                         selectedFileIndex = (selectedFileIndex + 1) % fileIds.length;
-                        renderTabs();
-                        return;
-                    }
-
-                    // ArrowUp: Move selection up
-                    if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        selectedFileIndex = (selectedFileIndex - 1 + fileIds.length) % fileIds.length;
-                        renderTabs();
-                        return;
-                    }
-
-                    // Enter: Switch to selected file
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
                         var selectedFileId = fileIds[selectedFileIndex];
                         if (selectedFileId) {
                             switchToFile(selectedFileId);
+                        }
+                        renderTabs();
+                        return;
+                    }
+
+                    // ArrowUp: Move selection up and preview
+                    if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        selectedFileIndex = (selectedFileIndex - 1 + fileIds.length) % fileIds.length;
+                        var selectedFileId = fileIds[selectedFileIndex];
+                        if (selectedFileId) {
+                            switchToFile(selectedFileId);
+                        }
+                        renderTabs();
+                        return;
+                    }
+
+                    // Enter: Confirm selection and close switcher
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        toggleFileSwitcher();
+                        return;
+                    }
+
+                    // N: Create new file
+                    if (e.key === 'n' || e.key === 'N') {
+                        e.preventDefault();
+                        createNewFile();
+                        setTimeout(function() {
+                            if (currentFileId) {
+                                renameFile(currentFileId);
+                            }
+                        }, 100);
+                        return;
+                    }
+
+                    // R: Rename selected file
+                    if (e.key === 'r' || e.key === 'R') {
+                        e.preventDefault();
+                        var selectedFileId = fileIds[selectedFileIndex];
+                        if (selectedFileId) {
+                            renameFile(selectedFileId);
+                        }
+                        return;
+                    }
+
+                    // D: Delete selected file
+                    if (e.key === 'd' || e.key === 'D') {
+                        e.preventDefault();
+                        var selectedFileId = fileIds[selectedFileIndex];
+                        if (selectedFileId) {
+                            closeFile(selectedFileId);
+                            // Adjust selected index if needed
+                            var newFileIds = Object.keys(files);
+                            if (selectedFileIndex >= newFileIds.length) {
+                                selectedFileIndex = newFileIds.length - 1;
+                            }
+                            if (selectedFileIndex < 0) selectedFileIndex = 0;
                         }
                         return;
                     }
