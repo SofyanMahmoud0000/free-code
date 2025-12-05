@@ -12,7 +12,7 @@
         }
         .selector {
             position: fixed;
-            top: 10px;
+            bottom: 10px;
             z-index: 1000;
             background: #252526;
             color: #cccccc;
@@ -104,14 +104,42 @@
                 }
             });
 
+            // Load saved content and language
+            var savedContent = localStorage.getItem('editorContent');
+            var savedLanguage = localStorage.getItem('editorLanguage');
+            var savedTheme = localStorage.getItem('editorTheme');
+
+            if (savedContent) {
+                editor.setValue(savedContent);
+            }
+            if (savedLanguage) {
+                monaco.editor.setModelLanguage(editor.getModel(), savedLanguage);
+                document.getElementById('language-selector').value = savedLanguage;
+            }
+            if (savedTheme) {
+                monaco.editor.setTheme(savedTheme);
+                document.getElementById('theme-selector').value = savedTheme;
+            }
+
+            // Auto-save to localStorage
+            var saveTimeout;
+            editor.onDidChangeModelContent(function() {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(function() {
+                    localStorage.setItem('editorContent', editor.getValue());
+                }, 500); // Save after 500ms of no typing
+            });
+
             // Language switcher
             document.getElementById('language-selector').addEventListener('change', function() {
                 monaco.editor.setModelLanguage(editor.getModel(), this.value);
+                localStorage.setItem('editorLanguage', this.value);
             });
 
             // Theme switcher
             document.getElementById('theme-selector').addEventListener('change', function() {
                 monaco.editor.setTheme(this.value);
+                localStorage.setItem('editorTheme', this.value);
             });
 
             // Auto-resize
