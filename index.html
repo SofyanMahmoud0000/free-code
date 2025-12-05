@@ -1,57 +1,124 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Editor</title>
+    <title>Monaco Editor</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #000000;
+            background: #1e1e1e;
             font-family: 'Consolas', 'Monaco', monospace;
             height: 100vh;
             overflow: hidden;
         }
-        #editor {
+        .selector {
+            position: fixed;
+            top: 10px;
+            z-index: 1000;
+            background: #252526;
+            color: #cccccc;
+            border: 1px solid #3c3c3c;
+            padding: 8px 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 2px;
+        }
+        .selector:hover {
+            background: #2d2d30;
+        }
+        #language-selector {
+            right: 180px;
+        }
+        #theme-selector {
+            right: 10px;
+        }
+        #container {
             width: 100%;
             height: 100vh;
-            background: #000000;
-            color: #d4d4d4;
-            border: none;
-            outline: none;
-            padding: 20px;
-            font-size: 16px;
-            line-height: 1.6;
-            resize: none;
-            font-family: 'Consolas', 'Monaco', monospace;
-        }
-        .CodeMirror {
-            background: #000000 !important;
-        }
-        .CodeMirror-gutters {
-            background: #000000 !important;
-            border-right: none !important;
         }
     </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/markdown/markdown.min.js"></script>
 </head>
 <body>
-    <textarea id="editor"></textarea>
+    <select id="language-selector" class="selector">
+        <option value="plaintext">Plain Text</option>
+        <option value="cpp" selected>C++</option>
+        <option value="c">C</option>
+        <option value="javascript">JavaScript</option>
+        <option value="typescript">TypeScript</option>
+        <option value="python">Python</option>
+        <option value="java">Java</option>
+        <option value="csharp">C#</option>
+        <option value="go">Go</option>
+        <option value="rust">Rust</option>
+        <option value="html">HTML</option>
+        <option value="css">CSS</option>
+        <option value="json">JSON</option>
+        <option value="markdown">Markdown</option>
+        <option value="sql">SQL</option>
+        <option value="php">PHP</option>
+    </select>
+    <select id="theme-selector" class="selector">
+        <option value="one-dark-black" selected>VS Dark Black</option>
+        <option value="vs-dark">VS Code Dark</option>
+        <option value="vs">VS Code Light</option>
+    </select>
+    <div id="container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     <script>
-        var editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
-            mode: 'javascript',
-            theme: 'monokai',
-            lineNumbers: true,
-            autofocus: true,
-            lineWrapping: true,
-            tabSize: 2,
-            indentUnit: 2
+        require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+
+        require(['vs/editor/editor.main'], function() {
+            // Define VS Dark Black theme (default vs-dark colors with black background)
+            monaco.editor.defineTheme('one-dark-black', {
+                base: 'vs-dark',
+                inherit: true,
+                rules: [],
+                colors: {
+                    'editor.background': '#000000',
+                }
+            });
+
+            var editor = monaco.editor.create(document.getElementById('container'), {
+                value: '',
+                language: 'cpp',
+                theme: 'one-dark-black',
+                fontSize: 16,
+                tabSize: 2,
+                insertSpaces: true,
+                autoClosingBrackets: 'always',
+                autoClosingQuotes: 'always',
+                formatOnType: true,
+                formatOnPaste: true,
+                renderLineHighlight: 'none',
+                quickSuggestions: false,
+                suggestOnTriggerCharacters: false,
+                acceptSuggestionOnEnter: 'off',
+                tabCompletion: 'off',
+                wordBasedSuggestions: false,
+                parameterHints: { enabled: false },
+                minimap: { enabled: false },
+                scrollbar: {
+                    verticalScrollbarSize: 10,
+                    horizontalScrollbarSize: 10
+                }
+            });
+
+            // Language switcher
+            document.getElementById('language-selector').addEventListener('change', function() {
+                monaco.editor.setModelLanguage(editor.getModel(), this.value);
+            });
+
+            // Theme switcher
+            document.getElementById('theme-selector').addEventListener('change', function() {
+                monaco.editor.setTheme(this.value);
+            });
+
+            // Auto-resize
+            window.addEventListener('resize', function() {
+                editor.layout();
+            });
         });
-        editor.setSize('100%', '100vh');
     </script>
 </body>
 </html>
