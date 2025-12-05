@@ -12,37 +12,50 @@
             display: flex;
             flex-direction: column;
         }
-        #sidebar {
+        #file-switcher {
             position: fixed;
-            left: 0;
-            top: 0;
-            width: 250px;
-            height: 100vh;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             background: #252526;
-            border-right: 1px solid #3c3c3c;
-            display: flex;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            min-width: 400px;
+            max-width: 600px;
+            max-height: 500px;
+            display: none;
             flex-direction: column;
-            transition: transform 0.3s ease;
-            z-index: 1000;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+            z-index: 2000;
         }
-        #sidebar.hidden {
-            transform: translateX(-250px);
+        #file-switcher.visible {
+            display: flex;
         }
-        #sidebar-header {
+        #file-switcher-header {
             padding: 15px;
             border-bottom: 1px solid #3c3c3c;
             color: #cccccc;
             font-size: 14px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        #sidebar-files {
+        #file-switcher-title {
+            font-weight: bold;
+            margin-right: 30px;
+        }
+        #file-switcher-shortcuts {
+            font-size: 11px;
+            color: #888;
+        }
+        #file-switcher-list {
             flex: 1;
             overflow-y: auto;
+            max-height: 400px;
+            outline: none;
         }
-        .sidebar-file {
-            padding: 10px 15px;
+        .file-switcher-item {
+            padding: 12px 15px;
             color: #cccccc;
             cursor: pointer;
             display: flex;
@@ -51,31 +64,31 @@
             font-size: 13px;
             border-bottom: 1px solid #3c3c3c;
         }
-        .sidebar-file:hover {
+        .file-switcher-item:hover {
             background: #2d2d30;
         }
-        .sidebar-file.active {
+        .file-switcher-item.active {
             background: #1e1e1e;
             color: #fff;
             border-left: 3px solid #007acc;
         }
-        .sidebar-file-name {
-            flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+        .file-switcher-item.selected {
+            background: #2d2d30;
+            border-left: 3px solid #4EC9B0;
         }
-        .sidebar-file-close {
+        .file-switcher-name {
+            flex: 1;
+        }
+        .file-switcher-close {
             margin-left: 10px;
             opacity: 0.6;
             font-weight: bold;
-            font-size: 16px;
         }
-        .sidebar-file-close:hover {
+        .file-switcher-close:hover {
             opacity: 1;
             color: #e06c75;
         }
-        #sidebar-new {
+        #file-switcher-new {
             padding: 12px 15px;
             color: #4EC9B0;
             cursor: pointer;
@@ -83,33 +96,25 @@
             font-weight: bold;
             text-align: center;
             border-top: 1px solid #3c3c3c;
-            background: #1e1e1e;
         }
-        #sidebar-new:hover {
+        #file-switcher-new:hover {
             background: #2d2d30;
         }
-        #sidebar-toggle {
+        #current-file-indicator {
             position: fixed;
-            bottom: 10px;
-            left: 10px;
-            z-index: 1001;
+            top: 10px;
+            right: 10px;
             background: #252526;
             color: #cccccc;
-            border: 1px solid #3c3c3c;
-            padding: 8px 12px;
-            cursor: pointer;
+            padding: 6px 12px;
             border-radius: 2px;
-            font-size: 13px;
-            transition: left 0.3s ease;
+            font-size: 12px;
+            opacity: 0.7;
+            z-index: 1000;
+            cursor: pointer;
         }
-        #sidebar-toggle:hover {
-            background: #2d2d30;
-        }
-        #sidebar-toggle.sidebar-hidden {
-            left: 10px;
-        }
-        #sidebar-toggle.sidebar-visible {
-            left: 260px;
+        #current-file-indicator:hover {
+            opacity: 1;
         }
         .selector {
             position: fixed;
@@ -136,20 +141,19 @@
         #container {
             flex: 1;
             width: 100%;
-            margin-left: 250px;
-            transition: margin-left 0.3s ease;
-        }
-        #container.sidebar-hidden {
-            margin-left: 0;
+            padding-bottom: 40px;
         }
     </style>
 </head>
 <body>
-    <button id="sidebar-toggle">☰</button>
-    <div id="sidebar">
-        <div id="sidebar-header">Files</div>
-        <div id="sidebar-files"></div>
-        <div id="sidebar-new">+ New File</div>
+    <div id="current-file-indicator"></div>
+    <div id="file-switcher">
+        <div id="file-switcher-header">
+            <span id="file-switcher-title">Files</span>
+            <span id="file-switcher-shortcuts">Ctrl+P: Toggle | ↑↓: Navigate | Enter: Select | Double-click: Rename</span>
+        </div>
+        <div id="file-switcher-list" tabindex="0"></div>
+        <div id="file-switcher-new">+ New File</div>
     </div>
     <select id="language-selector" class="selector">
         <option value="plaintext">Plain Text</option>
@@ -197,6 +201,7 @@
             var fileCounter = 0;
             var editor = null;
             var saveTimeout = null;
+            var selectedFileIndex = 0;
 
             // Initialize editor
             editor = monaco.editor.create(document.getElementById('container'), {
@@ -335,29 +340,42 @@
                 }
             }
 
-            // Render file list in sidebar
+            // Render files in switcher
             function renderTabs() {
-                var sidebarFiles = document.getElementById('sidebar-files');
-                sidebarFiles.innerHTML = '';
+                var list = document.getElementById('file-switcher-list');
+                list.innerHTML = '';
+
+                // Update current file indicator
+                if (currentFileId && files[currentFileId]) {
+                    document.getElementById('current-file-indicator').textContent = files[currentFileId].name;
+                }
 
                 // Add file items
-                Object.keys(files).forEach(function(fileId) {
+                var fileIds = Object.keys(files);
+                fileIds.forEach(function(fileId, index) {
                     var file = files[fileId];
                     var item = document.createElement('div');
-                    item.className = 'sidebar-file' + (fileId === currentFileId ? ' active' : '');
+                    var classes = 'file-switcher-item';
+                    if (fileId === currentFileId) classes += ' active';
+                    if (index === selectedFileIndex) classes += ' selected';
+                    item.className = classes;
 
                     var nameSpan = document.createElement('span');
-                    nameSpan.className = 'sidebar-file-name';
+                    nameSpan.className = 'file-switcher-name';
                     nameSpan.textContent = file.name;
-                    nameSpan.addEventListener('click', function() {
+                    nameSpan.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        selectedFileIndex = index;
                         switchToFile(fileId);
+                        renderTabs();
                     });
-                    nameSpan.addEventListener('dblclick', function() {
+                    nameSpan.addEventListener('dblclick', function(e) {
+                        e.preventDefault();
                         renameFile(fileId);
                     });
 
                     var closeSpan = document.createElement('span');
-                    closeSpan.className = 'sidebar-file-close';
+                    closeSpan.className = 'file-switcher-close';
                     closeSpan.textContent = '×';
                     closeSpan.addEventListener('click', function(e) {
                         e.stopPropagation();
@@ -366,49 +384,103 @@
 
                     item.appendChild(nameSpan);
                     item.appendChild(closeSpan);
-                    sidebarFiles.appendChild(item);
+                    list.appendChild(item);
                 });
             }
 
-            // Toggle sidebar
-            var sidebarVisible = localStorage.getItem('sidebarVisible') !== 'false';
-            function toggleSidebar() {
-                sidebarVisible = !sidebarVisible;
-                var sidebar = document.getElementById('sidebar');
-                var container = document.getElementById('container');
-                var toggle = document.getElementById('sidebar-toggle');
+            // Toggle file switcher
+            function toggleFileSwitcher() {
+                var switcher = document.getElementById('file-switcher');
+                var isOpening = !switcher.classList.contains('visible');
 
-                if (sidebarVisible) {
-                    sidebar.classList.remove('hidden');
-                    container.classList.remove('sidebar-hidden');
-                    toggle.classList.remove('sidebar-hidden');
-                    toggle.classList.add('sidebar-visible');
+                switcher.classList.toggle('visible');
+
+                // When opening, set selected index to current file and focus
+                if (isOpening) {
+                    var fileIds = Object.keys(files);
+                    selectedFileIndex = fileIds.indexOf(currentFileId);
+                    if (selectedFileIndex === -1) selectedFileIndex = 0;
+                    renderTabs();
+
+                    // Focus the list to capture keyboard events
+                    setTimeout(function() {
+                        document.getElementById('file-switcher-list').focus();
+                    }, 0);
                 } else {
-                    sidebar.classList.add('hidden');
-                    container.classList.add('sidebar-hidden');
-                    toggle.classList.remove('sidebar-visible');
-                    toggle.classList.add('sidebar-hidden');
+                    // When closing, return focus to editor
+                    editor.focus();
                 }
-
-                localStorage.setItem('sidebarVisible', sidebarVisible);
-                editor.layout();
             }
-
-            // Initialize sidebar state
-            if (!sidebarVisible) {
-                document.getElementById('sidebar').classList.add('hidden');
-                document.getElementById('container').classList.add('sidebar-hidden');
-                document.getElementById('sidebar-toggle').classList.add('sidebar-hidden');
-            } else {
-                document.getElementById('sidebar-toggle').classList.add('sidebar-visible');
-            }
-
-            // Sidebar toggle button
-            document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebar);
 
             // New file button
-            document.getElementById('sidebar-new').addEventListener('click', function() {
+            document.getElementById('file-switcher-new').addEventListener('click', function() {
                 createNewFile();
+                toggleFileSwitcher();
+            });
+
+            // Current file indicator click
+            document.getElementById('current-file-indicator').addEventListener('click', toggleFileSwitcher);
+
+            // Close file switcher when clicking outside
+            document.addEventListener('click', function(e) {
+                var switcher = document.getElementById('file-switcher');
+                var indicator = document.getElementById('current-file-indicator');
+
+                if (switcher.classList.contains('visible') &&
+                    !switcher.contains(e.target) &&
+                    !indicator.contains(e.target)) {
+                    toggleFileSwitcher();
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                var switcher = document.getElementById('file-switcher');
+                var isSwitcherOpen = switcher.classList.contains('visible');
+
+                // Ctrl+P: Toggle file switcher
+                if (e.ctrlKey && e.key === 'p') {
+                    e.preventDefault();
+                    toggleFileSwitcher();
+                    return;
+                }
+
+                // Arrow keys and Enter only work when switcher is open
+                if (isSwitcherOpen) {
+                    var fileIds = Object.keys(files);
+
+                    // ArrowDown: Move selection down
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        selectedFileIndex = (selectedFileIndex + 1) % fileIds.length;
+                        renderTabs();
+                        return;
+                    }
+
+                    // ArrowUp: Move selection up
+                    if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        selectedFileIndex = (selectedFileIndex - 1 + fileIds.length) % fileIds.length;
+                        renderTabs();
+                        return;
+                    }
+
+                    // Enter: Switch to selected file
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        var selectedFileId = fileIds[selectedFileIndex];
+                        if (selectedFileId) {
+                            switchToFile(selectedFileId);
+                        }
+                        return;
+                    }
+
+                    // Escape: Close file switcher
+                    if (e.key === 'Escape') {
+                        toggleFileSwitcher();
+                        return;
+                    }
+                }
             });
 
             // Language switcher
