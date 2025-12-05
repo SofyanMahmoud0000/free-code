@@ -1,0 +1,391 @@
+require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+
+require(['vs/editor/editor.main'], function() {
+    // Define VS Dark Black theme
+    monaco.editor.defineTheme('one-dark-black', {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [],
+        colors: {
+            'editor.background': '#000000',
+        }
+    });
+
+    // File management
+    var files = {};
+    var currentFileId = null;
+    var fileCounter = 0;
+    var editor = null;
+    var saveTimeout = null;
+    var selectedFileIndex = 0;
+
+    // Initialize editor
+    editor = monaco.editor.create(document.getElementById('container'), {
+        value: '',
+        language: 'cpp',
+        theme: 'one-dark-black',
+        fontSize: 16,
+        tabSize: 2,
+        insertSpaces: true,
+        autoClosingBrackets: 'always',
+        autoClosingQuotes: 'always',
+        formatOnType: true,
+        formatOnPaste: true,
+        renderLineHighlight: 'none',
+        quickSuggestions: false,
+        suggestOnTriggerCharacters: false,
+        acceptSuggestionOnEnter: 'off',
+        tabCompletion: 'off',
+        wordBasedSuggestions: false,
+        parameterHints: { enabled: false },
+        minimap: { enabled: false },
+        scrollbar: {
+            verticalScrollbarSize: 10,
+            horizontalScrollbarSize: 10
+        }
+    });
+
+    // Load theme
+    var savedTheme = localStorage.getItem('editorTheme') || 'one-dark-black';
+    monaco.editor.setTheme(savedTheme);
+    document.getElementById('theme-selector').value = savedTheme;
+
+    // Load files from localStorage
+    function loadFiles() {
+        var savedFiles = localStorage.getItem('files');
+        var savedCurrentId = localStorage.getItem('currentFileId');
+
+        if (savedFiles) {
+            files = JSON.parse(savedFiles);
+            fileCounter = parseInt(localStorage.getItem('fileCounter')) || Object.keys(files).length;
+        }
+
+        // If no files, create a default one
+        if (Object.keys(files).length === 0) {
+            createNewFile();
+        } else {
+            currentFileId = savedCurrentId || Object.keys(files)[0];
+            renderTabs();
+            loadFile(currentFileId);
+        }
+    }
+
+    // Save files to localStorage
+    function saveFiles() {
+        localStorage.setItem('files', JSON.stringify(files));
+        localStorage.setItem('currentFileId', currentFileId);
+        localStorage.setItem('fileCounter', fileCounter.toString());
+    }
+
+    // Save current file content
+    function saveCurrentFile() {
+        if (currentFileId && files[currentFileId]) {
+            files[currentFileId].content = editor.getValue();
+            files[currentFileId].language = editor.getModel().getLanguageId();
+            saveFiles();
+        }
+    }
+
+    // Auto-save
+    editor.onDidChangeModelContent(function() {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(saveCurrentFile, 500);
+    });
+
+    // Create new file
+    function createNewFile() {
+        fileCounter++;
+        var fileId = 'file-' + fileCounter;
+        files[fileId] = {
+            name: 'untitled-' + fileCounter + '.cpp',
+            content: '',
+            language: 'cpp'
+        };
+        currentFileId = fileId;
+        renderTabs();
+        loadFile(fileId);
+        saveFiles();
+    }
+
+    // Switch to file
+    function switchToFile(fileId) {
+        if (fileId === currentFileId) return;
+        saveCurrentFile();
+        currentFileId = fileId;
+        renderTabs();
+        loadFile(fileId);
+        saveFiles();
+    }
+
+    // Load file into editor
+    function loadFile(fileId) {
+        if (!files[fileId]) return;
+        var file = files[fileId];
+        editor.setValue(file.content);
+        monaco.editor.setModelLanguage(editor.getModel(), file.language);
+        document.getElementById('language-selector').value = file.language;
+    }
+
+    // Close file
+    function closeFile(fileId) {
+        if (Object.keys(files).length === 1) {
+            alert('Cannot close the last file');
+            return;
+        }
+
+        // Check if file has content and confirm deletion
+        var file = files[fileId];
+        if (file && file.content && file.content.trim().length > 0) {
+            var confirmed = confirm('File "' + file.name + '" contains data. Are you sure you want to delete it?');
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        delete files[fileId];
+
+        // Switch to another file
+        if (currentFileId === fileId) {
+            currentFileId = Object.keys(files)[0];
+            loadFile(currentFileId);
+        }
+
+        renderTabs();
+        saveFiles();
+    }
+
+    // Rename file
+    function renameFile(fileId) {
+        var file = files[fileId];
+        var newName = prompt('Enter new name:', file.name);
+        if (newName && newName.trim()) {
+            file.name = newName.trim();
+            renderTabs();
+            saveFiles();
+        }
+    }
+
+    // Render files in switcher
+    function renderTabs() {
+        var list = document.getElementById('file-switcher-list');
+        list.innerHTML = '';
+
+        // Update current file indicator
+        if (currentFileId && files[currentFileId]) {
+            document.getElementById('current-file-indicator').textContent = files[currentFileId].name;
+        }
+
+        // Add file items
+        var fileIds = Object.keys(files);
+        fileIds.forEach(function(fileId, index) {
+            var file = files[fileId];
+            var item = document.createElement('div');
+            var classes = 'file-switcher-item';
+            if (fileId === currentFileId) classes += ' active';
+            if (index === selectedFileIndex) classes += ' selected';
+            item.className = classes;
+
+            var nameSpan = document.createElement('span');
+            nameSpan.className = 'file-switcher-name';
+            nameSpan.textContent = file.name;
+            var clickTimer = null;
+            nameSpan.addEventListener('click', function(e) {
+                e.stopPropagation();
+                clearTimeout(clickTimer);
+                clickTimer = setTimeout(function() {
+                    selectedFileIndex = index;
+                    switchToFile(fileId);
+                    renderTabs();
+                }, 200);
+            });
+            nameSpan.addEventListener('dblclick', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                clearTimeout(clickTimer);
+                renameFile(fileId);
+            });
+
+            var closeSpan = document.createElement('span');
+            closeSpan.className = 'file-switcher-close';
+            closeSpan.textContent = '×';
+            closeSpan.addEventListener('click', function(e) {
+                e.stopPropagation();
+                closeFile(fileId);
+            });
+
+            item.appendChild(nameSpan);
+            item.appendChild(closeSpan);
+            list.appendChild(item);
+        });
+    }
+
+    // Toggle file switcher
+    function toggleFileSwitcher() {
+        var switcher = document.getElementById('file-switcher');
+        var hint = document.getElementById('keyboard-hint');
+        var isOpening = !switcher.classList.contains('visible');
+
+        switcher.classList.toggle('visible');
+
+        // Hide/show hint based on switcher state
+        if (isOpening) {
+            hint.style.display = 'none';
+            var fileIds = Object.keys(files);
+            selectedFileIndex = fileIds.indexOf(currentFileId);
+            if (selectedFileIndex === -1) selectedFileIndex = 0;
+            renderTabs();
+
+            // Focus the list to capture keyboard events
+            setTimeout(function() {
+                document.getElementById('file-switcher-list').focus();
+            }, 0);
+        } else {
+            hint.style.display = 'block';
+            // When closing, return focus to editor
+            editor.focus();
+        }
+    }
+
+    // New file button
+    document.getElementById('file-switcher-new').addEventListener('click', function(e) {
+        e.stopPropagation();
+        createNewFile();
+        // Trigger rename prompt for the new file
+        setTimeout(function() {
+            if (currentFileId) {
+                renameFile(currentFileId);
+            }
+        }, 100);
+    });
+
+    // Current file indicator click
+    document.getElementById('current-file-indicator').addEventListener('click', toggleFileSwitcher);
+
+    // Close file switcher when clicking outside
+    document.addEventListener('click', function(e) {
+        var switcher = document.getElementById('file-switcher');
+        var indicator = document.getElementById('current-file-indicator');
+
+        if (switcher.classList.contains('visible') &&
+            !switcher.contains(e.target) &&
+            !indicator.contains(e.target)) {
+            toggleFileSwitcher();
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        var switcher = document.getElementById('file-switcher');
+        var isSwitcherOpen = switcher.classList.contains('visible');
+
+        // Ctrl+P: Toggle file switcher
+        if (e.ctrlKey && e.key === 'p') {
+            e.preventDefault();
+            toggleFileSwitcher();
+            return;
+        }
+
+        // Arrow keys and Enter only work when switcher is open
+        if (isSwitcherOpen) {
+            var fileIds = Object.keys(files);
+
+            // ArrowDown: Move selection down and preview
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedFileIndex = (selectedFileIndex + 1) % fileIds.length;
+                var selectedFileId = fileIds[selectedFileIndex];
+                if (selectedFileId) {
+                    switchToFile(selectedFileId);
+                }
+                renderTabs();
+                return;
+            }
+
+            // ArrowUp: Move selection up and preview
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedFileIndex = (selectedFileIndex - 1 + fileIds.length) % fileIds.length;
+                var selectedFileId = fileIds[selectedFileIndex];
+                if (selectedFileId) {
+                    switchToFile(selectedFileId);
+                }
+                renderTabs();
+                return;
+            }
+
+            // Enter: Confirm selection and close switcher
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                toggleFileSwitcher();
+                return;
+            }
+
+            // N: Create new file
+            if (e.key === 'n' || e.key === 'N') {
+                e.preventDefault();
+                createNewFile();
+                setTimeout(function() {
+                    if (currentFileId) {
+                        renameFile(currentFileId);
+                    }
+                }, 100);
+                return;
+            }
+
+            // R: Rename selected file
+            if (e.key === 'r' || e.key === 'R') {
+                e.preventDefault();
+                var selectedFileId = fileIds[selectedFileIndex];
+                if (selectedFileId) {
+                    renameFile(selectedFileId);
+                }
+                return;
+            }
+
+            // D: Delete selected file
+            if (e.key === 'd' || e.key === 'D') {
+                e.preventDefault();
+                var selectedFileId = fileIds[selectedFileIndex];
+                if (selectedFileId) {
+                    closeFile(selectedFileId);
+                    // Adjust selected index if needed
+                    var newFileIds = Object.keys(files);
+                    if (selectedFileIndex >= newFileIds.length) {
+                        selectedFileIndex = newFileIds.length - 1;
+                    }
+                    if (selectedFileIndex < 0) selectedFileIndex = 0;
+                }
+                return;
+            }
+
+            // Escape: Close file switcher
+            if (e.key === 'Escape') {
+                toggleFileSwitcher();
+                return;
+            }
+        }
+    });
+
+    // Language switcher
+    document.getElementById('language-selector').addEventListener('change', function() {
+        monaco.editor.setModelLanguage(editor.getModel(), this.value);
+        if (currentFileId && files[currentFileId]) {
+            files[currentFileId].language = this.value;
+            saveFiles();
+        }
+    });
+
+    // Theme switcher
+    document.getElementById('theme-selector').addEventListener('change', function() {
+        monaco.editor.setTheme(this.value);
+        localStorage.setItem('editorTheme', this.value);
+    });
+
+    // Auto-resize
+    window.addEventListener('resize', function() {
+        editor.layout();
+    });
+
+    // Initialize
+    loadFiles();
+});
