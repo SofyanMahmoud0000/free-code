@@ -12,45 +12,36 @@
             display: flex;
             flex-direction: column;
         }
-        #file-menu-btn {
+        #sidebar {
             position: fixed;
-            bottom: 10px;
-            right: 360px;
-            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
             background: #252526;
-            color: #cccccc;
-            border: 1px solid #3c3c3c;
-            padding: 8px 12px;
-            cursor: pointer;
-            border-radius: 2px;
-            font-size: 13px;
-            font-family: 'Consolas', 'Monaco', monospace;
-            user-select: none;
-            min-width: 80px;
-            text-align: center;
-        }
-        #file-menu-btn:hover {
-            background: #2d2d30;
-        }
-        #file-menu {
-            position: fixed;
-            bottom: 50px;
-            right: 360px;
+            border-right: 1px solid #3c3c3c;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
             z-index: 1000;
-            background: #252526;
-            border: 1px solid #3c3c3c;
-            border-radius: 4px;
-            min-width: 250px;
-            max-width: 350px;
-            max-height: 400px;
+        }
+        #sidebar.hidden {
+            transform: translateX(-250px);
+        }
+        #sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid #3c3c3c;
+            color: #cccccc;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #sidebar-files {
+            flex: 1;
             overflow-y: auto;
-            display: none;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         }
-        #file-menu.visible {
-            display: block;
-        }
-        .file-menu-item {
+        .sidebar-file {
             padding: 10px 15px;
             color: #cccccc;
             cursor: pointer;
@@ -60,39 +51,65 @@
             font-size: 13px;
             border-bottom: 1px solid #3c3c3c;
         }
-        .file-menu-item:hover {
+        .sidebar-file:hover {
             background: #2d2d30;
         }
-        .file-menu-item.active {
+        .sidebar-file.active {
             background: #1e1e1e;
             color: #fff;
+            border-left: 3px solid #007acc;
         }
-        .file-menu-item-name {
+        .sidebar-file-name {
             flex: 1;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        .file-menu-item-close {
+        .sidebar-file-close {
             margin-left: 10px;
             opacity: 0.6;
             font-weight: bold;
+            font-size: 16px;
         }
-        .file-menu-item-close:hover {
+        .sidebar-file-close:hover {
             opacity: 1;
             color: #e06c75;
         }
-        #file-menu-new {
-            padding: 10px 15px;
+        #sidebar-new {
+            padding: 12px 15px;
             color: #4EC9B0;
             cursor: pointer;
             font-size: 13px;
             font-weight: bold;
             text-align: center;
             border-top: 1px solid #3c3c3c;
+            background: #1e1e1e;
         }
-        #file-menu-new:hover {
+        #sidebar-new:hover {
             background: #2d2d30;
+        }
+        #sidebar-toggle {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1001;
+            background: #252526;
+            color: #cccccc;
+            border: 1px solid #3c3c3c;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 2px;
+            font-size: 13px;
+            transition: left 0.3s ease;
+        }
+        #sidebar-toggle:hover {
+            background: #2d2d30;
+        }
+        #sidebar-toggle.sidebar-hidden {
+            left: 10px;
+        }
+        #sidebar-toggle.sidebar-visible {
+            left: 260px;
         }
         .selector {
             position: fixed;
@@ -119,13 +136,20 @@
         #container {
             flex: 1;
             width: 100%;
+            margin-left: 250px;
+            transition: margin-left 0.3s ease;
+        }
+        #container.sidebar-hidden {
+            margin-left: 0;
         }
     </style>
 </head>
 <body>
-    <button id="file-menu-btn">☰ Files</button>
-    <div id="file-menu">
-        <div id="file-menu-new">+ New File</div>
+    <button id="sidebar-toggle">☰</button>
+    <div id="sidebar">
+        <div id="sidebar-header">Files</div>
+        <div id="sidebar-files"></div>
+        <div id="sidebar-new">+ New File</div>
     </div>
     <select id="language-selector" class="selector">
         <option value="plaintext">Plain Text</option>
@@ -311,35 +335,29 @@
                 }
             }
 
-            // Render file menu
+            // Render file list in sidebar
             function renderTabs() {
-                var menu = document.getElementById('file-menu');
-                var newBtn = document.getElementById('file-menu-new');
-
-                // Clear existing items (keep new button)
-                while (menu.firstChild && menu.firstChild !== newBtn) {
-                    menu.removeChild(menu.firstChild);
-                }
+                var sidebarFiles = document.getElementById('sidebar-files');
+                sidebarFiles.innerHTML = '';
 
                 // Add file items
                 Object.keys(files).forEach(function(fileId) {
                     var file = files[fileId];
                     var item = document.createElement('div');
-                    item.className = 'file-menu-item' + (fileId === currentFileId ? ' active' : '');
+                    item.className = 'sidebar-file' + (fileId === currentFileId ? ' active' : '');
 
                     var nameSpan = document.createElement('span');
-                    nameSpan.className = 'file-menu-item-name';
+                    nameSpan.className = 'sidebar-file-name';
                     nameSpan.textContent = file.name;
                     nameSpan.addEventListener('click', function() {
                         switchToFile(fileId);
-                        toggleMenu();
                     });
                     nameSpan.addEventListener('dblclick', function() {
                         renameFile(fileId);
                     });
 
                     var closeSpan = document.createElement('span');
-                    closeSpan.className = 'file-menu-item-close';
+                    closeSpan.className = 'sidebar-file-close';
                     closeSpan.textContent = '×';
                     closeSpan.addEventListener('click', function(e) {
                         e.stopPropagation();
@@ -348,32 +366,49 @@
 
                     item.appendChild(nameSpan);
                     item.appendChild(closeSpan);
-                    menu.insertBefore(item, newBtn);
+                    sidebarFiles.appendChild(item);
                 });
             }
 
-            // Toggle menu
-            function toggleMenu() {
-                var menu = document.getElementById('file-menu');
-                menu.classList.toggle('visible');
+            // Toggle sidebar
+            var sidebarVisible = localStorage.getItem('sidebarVisible') !== 'false';
+            function toggleSidebar() {
+                sidebarVisible = !sidebarVisible;
+                var sidebar = document.getElementById('sidebar');
+                var container = document.getElementById('container');
+                var toggle = document.getElementById('sidebar-toggle');
+
+                if (sidebarVisible) {
+                    sidebar.classList.remove('hidden');
+                    container.classList.remove('sidebar-hidden');
+                    toggle.classList.remove('sidebar-hidden');
+                    toggle.classList.add('sidebar-visible');
+                } else {
+                    sidebar.classList.add('hidden');
+                    container.classList.add('sidebar-hidden');
+                    toggle.classList.remove('sidebar-visible');
+                    toggle.classList.add('sidebar-hidden');
+                }
+
+                localStorage.setItem('sidebarVisible', sidebarVisible);
+                editor.layout();
             }
 
-            // Menu button
-            document.getElementById('file-menu-btn').addEventListener('click', toggleMenu);
+            // Initialize sidebar state
+            if (!sidebarVisible) {
+                document.getElementById('sidebar').classList.add('hidden');
+                document.getElementById('container').classList.add('sidebar-hidden');
+                document.getElementById('sidebar-toggle').classList.add('sidebar-hidden');
+            } else {
+                document.getElementById('sidebar-toggle').classList.add('sidebar-visible');
+            }
+
+            // Sidebar toggle button
+            document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebar);
 
             // New file button
-            document.getElementById('file-menu-new').addEventListener('click', function() {
+            document.getElementById('sidebar-new').addEventListener('click', function() {
                 createNewFile();
-                toggleMenu();
-            });
-
-            // Close menu when clicking outside
-            document.addEventListener('click', function(e) {
-                var menu = document.getElementById('file-menu');
-                var btn = document.getElementById('file-menu-btn');
-                if (!menu.contains(e.target) && e.target !== btn) {
-                    menu.classList.remove('visible');
-                }
             });
 
             // Language switcher
