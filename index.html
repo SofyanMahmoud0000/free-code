@@ -7,6 +7,36 @@
 <body>
     <div id="current-file-indicator"></div>
     <div id="keyboard-hint">Press Ctrl+P for files</div>
+    <div id="stopwatch">
+        <span id="stopwatch-time">00:00:00</span>
+        <span id="stopwatch-reset">↺</span>
+    </div>
+    <div id="countdown">
+        <span id="countdown-time">00:00:00</span>
+        <span id="countdown-reset">↺</span>
+    </div>
+
+    <!-- Countdown Input Modal -->
+    <div id="countdown-modal" style="display: none;">
+        <div id="countdown-modal-content">
+            <h3>Set Countdown Timer</h3>
+            <div id="countdown-inputs">
+                <div class="countdown-input-group">
+                    <label>Hours</label>
+                    <input type="number" id="countdown-hours" min="0" max="23" value="0">
+                </div>
+                <div class="countdown-input-group">
+                    <label>Minutes</label>
+                    <input type="number" id="countdown-minutes" min="0" max="59" value="5">
+                </div>
+            </div>
+            <div id="countdown-modal-buttons">
+                <button id="countdown-start-btn">Start</button>
+                <button id="countdown-cancel-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <div id="file-switcher">
         <div id="file-switcher-header">
             <span id="file-switcher-title">Files</span>

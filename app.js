@@ -386,6 +386,191 @@ require(['vs/editor/editor.main'], function() {
         editor.layout();
     });
 
+    // Stopwatch
+    var stopwatchInterval = null;
+    var stopwatchSeconds = 0;
+    var isStopwatchRunning = false;
+
+    function formatTime(totalSeconds) {
+        var hours = Math.floor(totalSeconds / 3600);
+        var minutes = Math.floor((totalSeconds % 3600) / 60);
+        var seconds = totalSeconds % 60;
+        return (hours < 10 ? '0' + hours : hours) + ':' +
+               (minutes < 10 ? '0' + minutes : minutes) + ':' +
+               (seconds < 10 ? '0' + seconds : seconds);
+    }
+
+    function updateStopwatch() {
+        stopwatchSeconds++;
+        var timeStr = formatTime(stopwatchSeconds);
+        document.getElementById('stopwatch-time').textContent = timeStr;
+    }
+
+    function toggleStopwatch(e) {
+        if (e) e.stopPropagation();
+        var stopwatchEl = document.getElementById('stopwatch');
+
+        if (isStopwatchRunning) {
+            // Pause
+            clearInterval(stopwatchInterval);
+            stopwatchEl.classList.remove('running');
+            isStopwatchRunning = false;
+        } else {
+            // Start
+            stopwatchInterval = setInterval(updateStopwatch, 1000);
+            stopwatchEl.classList.add('running');
+            isStopwatchRunning = true;
+        }
+    }
+
+    function resetStopwatch(e) {
+        if (e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+
+        // Stop if running
+        if (isStopwatchRunning) {
+            clearInterval(stopwatchInterval);
+            document.getElementById('stopwatch').classList.remove('running');
+            isStopwatchRunning = false;
+        }
+
+        // Reset to zero
+        stopwatchSeconds = 0;
+        document.getElementById('stopwatch-time').textContent = '00:00:00';
+    }
+
+    // Stopwatch click handlers
+    var stopwatchTimeEl = document.getElementById('stopwatch-time');
+    var stopwatchResetEl = document.getElementById('stopwatch-reset');
+
+    if (stopwatchTimeEl) {
+        stopwatchTimeEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleStopwatch(e);
+        });
+    }
+
+    if (stopwatchResetEl) {
+        stopwatchResetEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            resetStopwatch(e);
+        });
+    }
+
+    // Countdown Timer
+    var countdownInterval = null;
+    var countdownSeconds = 0;
+    var isCountdownRunning = false;
+
+    function updateCountdown() {
+        if (countdownSeconds > 0) {
+            countdownSeconds--;
+            var timeStr = formatTime(countdownSeconds);
+            document.getElementById('countdown-time').textContent = timeStr;
+        } else {
+            // Countdown finished
+            clearInterval(countdownInterval);
+            document.getElementById('countdown').classList.remove('running');
+            isCountdownRunning = false;
+            alert('Countdown finished!');
+            countdownSeconds = 0;
+            document.getElementById('countdown-time').textContent = '00:00:00';
+        }
+    }
+
+    function startCountdown(e) {
+        if (e) e.stopPropagation();
+
+        if (isCountdownRunning) {
+            // Pause countdown
+            clearInterval(countdownInterval);
+            document.getElementById('countdown').classList.remove('running');
+            isCountdownRunning = false;
+        } else {
+            // Show modal if countdown is at 0
+            if (countdownSeconds === 0) {
+                document.getElementById('countdown-modal').style.display = 'flex';
+                return;
+            }
+
+            // Start countdown
+            countdownInterval = setInterval(updateCountdown, 1000);
+            document.getElementById('countdown').classList.add('running');
+            isCountdownRunning = true;
+        }
+    }
+
+    // Modal button handlers
+    document.getElementById('countdown-start-btn').addEventListener('click', function() {
+        var hours = parseInt(document.getElementById('countdown-hours').value) || 0;
+        var minutes = parseInt(document.getElementById('countdown-minutes').value) || 0;
+
+        countdownSeconds = hours * 3600 + minutes * 60;
+
+        if (countdownSeconds <= 0) {
+            alert('Please enter a valid time');
+            return;
+        }
+
+        // Hide modal
+        document.getElementById('countdown-modal').style.display = 'none';
+
+        // Update display and start countdown
+        document.getElementById('countdown-time').textContent = formatTime(countdownSeconds);
+        countdownInterval = setInterval(updateCountdown, 1000);
+        document.getElementById('countdown').classList.add('running');
+        isCountdownRunning = true;
+    });
+
+    document.getElementById('countdown-cancel-btn').addEventListener('click', function() {
+        document.getElementById('countdown-modal').style.display = 'none';
+    });
+
+    // Close modal when clicking outside
+    document.getElementById('countdown-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.style.display = 'none';
+        }
+    });
+
+    function resetCountdown(e) {
+        if (e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+
+        // Stop if running
+        if (isCountdownRunning) {
+            clearInterval(countdownInterval);
+            document.getElementById('countdown').classList.remove('running');
+            isCountdownRunning = false;
+        }
+
+        // Reset to zero
+        countdownSeconds = 0;
+        document.getElementById('countdown-time').textContent = '00:00:00';
+    }
+
+    // Countdown click handlers
+    var countdownTimeEl = document.getElementById('countdown-time');
+    var countdownResetEl = document.getElementById('countdown-reset');
+
+    if (countdownTimeEl) {
+        countdownTimeEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            startCountdown(e);
+        });
+    }
+
+    if (countdownResetEl) {
+        countdownResetEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            resetCountdown(e);
+        });
+    }
+
     // Initialize
     loadFiles();
 });

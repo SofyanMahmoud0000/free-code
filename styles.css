@@ -148,6 +148,252 @@ body {
     opacity: 0.8;
 }
 
+#stopwatch {
+    position: fixed;
+    top: 160px;
+    right: 10px;
+    background: #252526;
+    color: #cccccc;
+    padding: 8px 8px;
+    border-radius: 6px 0 0 6px;
+    font-size: 18px;
+    opacity: 0.7;
+    z-index: 1000;
+    cursor: pointer;
+    font-family: 'Consolas', 'Monaco', monospace;
+    border: 1px solid #3c3c3c;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    width: 36px;
+    overflow: hidden;
+}
+
+#stopwatch::before {
+    content: '⏱';
+    font-size: 20px;
+    color: #5EDDC8;
+    flex-shrink: 0;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+
+#stopwatch:hover {
+    opacity: 1;
+    width: auto;
+}
+
+#stopwatch.running {
+    border-color: #4EC9B0;
+}
+
+#stopwatch.running::before {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+#stopwatch-time {
+    cursor: pointer;
+    opacity: 0;
+    white-space: nowrap;
+    font-size: 12px;
+    transition: opacity 0.3s ease;
+}
+
+#stopwatch:hover #stopwatch-time {
+    opacity: 1;
+}
+
+#stopwatch-reset {
+    font-size: 14px;
+    opacity: 0;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.3s ease;
+}
+
+#stopwatch:hover #stopwatch-reset {
+    opacity: 0.5;
+}
+
+#stopwatch-reset:hover {
+    opacity: 1 !important;
+    color: #e06c75;
+}
+
+#countdown {
+    position: fixed;
+    top: 205px;
+    right: 10px;
+    background: #252526;
+    color: #cccccc;
+    padding: 8px 8px;
+    border-radius: 6px 0 0 6px;
+    font-size: 18px;
+    opacity: 0.7;
+    z-index: 1000;
+    cursor: pointer;
+    font-family: 'Consolas', 'Monaco', monospace;
+    border: 1px solid #3c3c3c;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    width: 36px;
+    overflow: hidden;
+}
+
+#countdown::before {
+    content: '⏲';
+    font-size: 20px;
+    color: #61AFEF;
+    flex-shrink: 0;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+
+#countdown:hover {
+    opacity: 1;
+    width: auto;
+}
+
+#countdown.running {
+    border-color: #61AFEF;
+}
+
+#countdown.running::before {
+    animation: pulse 2s infinite;
+}
+
+#countdown-time {
+    cursor: pointer;
+    opacity: 0;
+    white-space: nowrap;
+    font-size: 12px;
+    transition: opacity 0.3s ease;
+}
+
+#countdown:hover #countdown-time {
+    opacity: 1;
+}
+
+#countdown-reset {
+    font-size: 14px;
+    opacity: 0;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.3s ease;
+}
+
+#countdown:hover #countdown-reset {
+    opacity: 0.5;
+}
+
+#countdown-reset:hover {
+    opacity: 1 !important;
+    color: #e06c75;
+}
+
+/* Countdown Modal */
+#countdown-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#countdown-modal-content {
+    background: #252526;
+    padding: 25px;
+    border-radius: 6px;
+    border: 1px solid #3c3c3c;
+    min-width: 300px;
+}
+
+#countdown-modal-content h3 {
+    color: #cccccc;
+    margin: 0 0 20px 0;
+    font-size: 16px;
+    font-weight: normal;
+}
+
+#countdown-inputs {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.countdown-input-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.countdown-input-group label {
+    color: #888;
+    font-size: 12px;
+}
+
+.countdown-input-group input {
+    background: #1e1e1e;
+    border: 1px solid #3c3c3c;
+    color: #cccccc;
+    padding: 8px 12px;
+    border-radius: 3px;
+    font-size: 14px;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.countdown-input-group input:focus {
+    outline: none;
+    border-color: #61AFEF;
+}
+
+#countdown-modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+#countdown-modal-buttons button {
+    background: #3c3c3c;
+    border: 1px solid #3c3c3c;
+    color: #cccccc;
+    padding: 8px 20px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+#countdown-modal-buttons button:hover {
+    background: #4c4c4c;
+}
+
+#countdown-start-btn {
+    background: #61AFEF !important;
+    border-color: #61AFEF !important;
+    color: #1e1e1e !important;
+}
+
+#countdown-start-btn:hover {
+    background: #5199d6 !important;
+}
+
 .selector {
     position: fixed;
     bottom: 10px;
