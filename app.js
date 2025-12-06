@@ -390,6 +390,7 @@ require(['vs/editor/editor.main'], function() {
     var stopwatchInterval = null;
     var stopwatchSeconds = 0;
     var isStopwatchRunning = false;
+    var stopwatchStartTime = null;
 
     function formatTime(totalSeconds) {
         var hours = Math.floor(totalSeconds / 3600);
@@ -400,10 +401,47 @@ require(['vs/editor/editor.main'], function() {
                (seconds < 10 ? '0' + seconds : seconds);
     }
 
+    function saveStopwatchState() {
+        localStorage.setItem('stopwatchSeconds', stopwatchSeconds.toString());
+        localStorage.setItem('isStopwatchRunning', isStopwatchRunning.toString());
+        if (isStopwatchRunning) {
+            localStorage.setItem('stopwatchStartTime', stopwatchStartTime.toString());
+        } else {
+            localStorage.removeItem('stopwatchStartTime');
+        }
+    }
+
+    function loadStopwatchState() {
+        var savedSeconds = localStorage.getItem('stopwatchSeconds');
+        var savedRunning = localStorage.getItem('isStopwatchRunning');
+        var savedStartTime = localStorage.getItem('stopwatchStartTime');
+
+        if (savedSeconds) {
+            stopwatchSeconds = parseInt(savedSeconds);
+        }
+
+        if (savedRunning === 'true' && savedStartTime) {
+            // Calculate elapsed time since page was closed
+            var startTime = parseInt(savedStartTime);
+            var now = Date.now();
+            var elapsedWhileClosed = Math.floor((now - startTime) / 1000);
+            stopwatchSeconds += elapsedWhileClosed;
+
+            // Restart the stopwatch
+            stopwatchStartTime = now;
+            stopwatchInterval = setInterval(updateStopwatch, 1000);
+            document.getElementById('stopwatch').classList.add('running');
+            isStopwatchRunning = true;
+        }
+
+        document.getElementById('stopwatch-time').textContent = formatTime(stopwatchSeconds);
+    }
+
     function updateStopwatch() {
         stopwatchSeconds++;
         var timeStr = formatTime(stopwatchSeconds);
         document.getElementById('stopwatch-time').textContent = timeStr;
+        saveStopwatchState();
     }
 
     function toggleStopwatch(e) {
@@ -415,12 +453,15 @@ require(['vs/editor/editor.main'], function() {
             clearInterval(stopwatchInterval);
             stopwatchEl.classList.remove('running');
             isStopwatchRunning = false;
+            stopwatchStartTime = null;
         } else {
             // Start
+            stopwatchStartTime = Date.now();
             stopwatchInterval = setInterval(updateStopwatch, 1000);
             stopwatchEl.classList.add('running');
             isStopwatchRunning = true;
         }
+        saveStopwatchState();
     }
 
     function resetStopwatch(e) {
@@ -438,7 +479,9 @@ require(['vs/editor/editor.main'], function() {
 
         // Reset to zero
         stopwatchSeconds = 0;
+        stopwatchStartTime = null;
         document.getElementById('stopwatch-time').textContent = '00:00:00';
+        saveStopwatchState();
     }
 
     // Stopwatch click handlers
@@ -463,20 +506,69 @@ require(['vs/editor/editor.main'], function() {
     var countdownInterval = null;
     var countdownSeconds = 0;
     var isCountdownRunning = false;
+    var countdownTargetTime = null;
+
+    function saveCountdownState() {
+        localStorage.setItem('countdownSeconds', countdownSeconds.toString());
+        localStorage.setItem('isCountdownRunning', isCountdownRunning.toString());
+        if (isCountdownRunning && countdownTargetTime) {
+            localStorage.setItem('countdownTargetTime', countdownTargetTime.toString());
+        } else {
+            localStorage.removeItem('countdownTargetTime');
+        }
+    }
+
+    function loadCountdownState() {
+        var savedSeconds = localStorage.getItem('countdownSeconds');
+        var savedRunning = localStorage.getItem('isCountdownRunning');
+        var savedTargetTime = localStorage.getItem('countdownTargetTime');
+
+        if (savedRunning === 'true' && savedTargetTime) {
+            // Calculate remaining time
+            var targetTime = parseInt(savedTargetTime);
+            var now = Date.now();
+            var remainingMs = targetTime - now;
+
+            if (remainingMs > 0) {
+                // Countdown still running
+                countdownSeconds = Math.floor(remainingMs / 1000);
+                countdownTargetTime = targetTime;
+                countdownInterval = setInterval(updateCountdown, 1000);
+                document.getElementById('countdown').classList.add('running');
+                isCountdownRunning = true;
+            } else {
+                // Countdown finished while page was closed
+                countdownSeconds = 0;
+                isCountdownRunning = false;
+                countdownTargetTime = null;
+                localStorage.removeItem('countdownTargetTime');
+                localStorage.removeItem('isCountdownRunning');
+                // Show finished alert
+                alert('Countdown finished!');
+            }
+        } else if (savedSeconds) {
+            countdownSeconds = parseInt(savedSeconds);
+        }
+
+        document.getElementById('countdown-time').textContent = formatTime(countdownSeconds);
+    }
 
     function updateCountdown() {
         if (countdownSeconds > 0) {
             countdownSeconds--;
             var timeStr = formatTime(countdownSeconds);
             document.getElementById('countdown-time').textContent = timeStr;
+            saveCountdownState();
         } else {
             // Countdown finished
             clearInterval(countdownInterval);
             document.getElementById('countdown').classList.remove('running');
             isCountdownRunning = false;
+            countdownTargetTime = null;
             alert('Countdown finished!');
             countdownSeconds = 0;
             document.getElementById('countdown-time').textContent = '00:00:00';
+            saveCountdownState();
         }
     }
 
@@ -488,6 +580,8 @@ require(['vs/editor/editor.main'], function() {
             clearInterval(countdownInterval);
             document.getElementById('countdown').classList.remove('running');
             isCountdownRunning = false;
+            countdownTargetTime = null;
+            saveCountdownState();
         } else {
             // Show modal if countdown is at 0
             if (countdownSeconds === 0) {
@@ -496,9 +590,11 @@ require(['vs/editor/editor.main'], function() {
             }
 
             // Start countdown
+            countdownTargetTime = Date.now() + (countdownSeconds * 1000);
             countdownInterval = setInterval(updateCountdown, 1000);
             document.getElementById('countdown').classList.add('running');
             isCountdownRunning = true;
+            saveCountdownState();
         }
     }
 
@@ -519,9 +615,11 @@ require(['vs/editor/editor.main'], function() {
 
         // Update display and start countdown
         document.getElementById('countdown-time').textContent = formatTime(countdownSeconds);
+        countdownTargetTime = Date.now() + (countdownSeconds * 1000);
         countdownInterval = setInterval(updateCountdown, 1000);
         document.getElementById('countdown').classList.add('running');
         isCountdownRunning = true;
+        saveCountdownState();
     });
 
     document.getElementById('countdown-cancel-btn').addEventListener('click', function() {
@@ -550,7 +648,9 @@ require(['vs/editor/editor.main'], function() {
 
         // Reset to zero
         countdownSeconds = 0;
+        countdownTargetTime = null;
         document.getElementById('countdown-time').textContent = '00:00:00';
+        saveCountdownState();
     }
 
     // Countdown click handlers
@@ -573,4 +673,6 @@ require(['vs/editor/editor.main'], function() {
 
     // Initialize
     loadFiles();
+    loadStopwatchState();
+    loadCountdownState();
 });
