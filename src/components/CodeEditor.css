@@ -1,0 +1,31 @@
+.code-editor-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 40px;
+  background: #000000;
+}
+
+.editor-selectors {
+  position: fixed;
+  bottom: 10px;
+  right: var(--overlay-right, 10px);
+  display: flex;
+  gap: 10px;
+  z-index: 1000;
+  transition: right 0.3s ease;
+}
+
+.selector {
+  background: #252526;
+  color: #cccccc;
+  border: 1px solid #3c3c3c;
+  padding: 8px 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.selector:hover { background: #2d2d30; }
