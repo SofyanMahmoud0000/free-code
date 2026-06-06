@@ -1,0 +1,18 @@
+services:
+  free-code:
+    build: .
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+
+  free-code-dev:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    command: sh -c "npm ci && npm run dev -- --host"
+    profiles:
+      - dev
